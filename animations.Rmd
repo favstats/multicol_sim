@@ -1,0 +1,68 @@
+---
+title: "Animations"
+output: html_notebook
+---
+
+#### animations
+
+```{r}
+all_dat <- sim_data  %>% 
+     filter(term=="x1") #%>% 
+  # mutate(time = as.factor(n) %>% as.numeric) 
+
+sim_data  %>% 
+     filter(term=="x1") %>% 
+  mutate(time = as.factor(n) %>% as.numeric) %>% 
+     ggplot(aes(cors, statistic, colour = n)) +     # draw the original data series with grey
+     geom_smooth(data = all_dat, aes(cors, statistic, group = n), colour = alpha("grey", 0.4), size = 0.8, se = F) +
+     geom_smooth(method = "loess", se = F, size = 1, alpha = 0.8) +
+     xlab("Correlation") + labs(y = expression("t-statistic~(~x[1]~)")) + 
+     theme_hc() + scale_color_viridis(direction = -1
+     #   limits = c(5, 3.5) * 1000, 
+        # breaks = c(0.1, 1.3, 2.5) * 1000, 
+        # labels = c("50", "1300", "3000")
+     ) + 
+
+  # colourise only the filtered data
+  # geom_smooth(aes(idx, value, colour = type), data = d_filtered) +
+  geom_text(aes(x = .85, y = 13, label = paste0("Sample Size = ", n))) +
+  # Here comes the gganimate code
+  transition_time(
+    time
+  ) +
+  enter_fade() + 
+  exit_fade() +
+  ease_aes('sine-in-out') 
+
+all_dat <- sim_data  %>% 
+     filter(term=="x1") %>% 
+    filter(n>200) 
+
+sim_data  %>% 
+    filter(term=="x1") %>% 
+    filter(n>200) %>%
+  mutate(time = as.factor(n) %>% as.numeric) %>% 
+     ggplot(aes(cors, estimate, colour = n)) +     # draw the original data series with grey
+     geom_line(data = all_dat, aes(cors, estimate, group = n), colour = alpha("grey", 0.4), size = 0.8) +
+     geom_line(method = "loess", size = 1, alpha = 0.8) +
+     xlab("Correlation") + labs(y = expression("t-statistic~(~x[1]~)")) + 
+     theme_hc() + scale_color_viridis(direction = -1
+     #   limits = c(5, 3.5) * 1000, 
+        # breaks = c(0.1, 1.3, 2.5) * 1000, 
+        # labels = c("50", "1300", "3000")
+     ) + 
+
+  # colourise only the filtered data
+  # geom_smooth(aes(idx, value, colour = type), data = d_filtered) +
+  geom_text(aes(x = .15, y = 1.75, label = paste0("Sample Size = ", n))) +
+  # Here comes the gganimate code
+  transition_time(
+    time
+  ) +
+  enter_fade() + 
+  exit_fade() +
+  ease_aes('sine-in-out') 
+
+anim_save(filename = "wiggly.gif")
+```
+
