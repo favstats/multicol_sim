@@ -189,6 +189,61 @@ sim_data  %>%
 ggsave(filename = "images/b_static.png", width = 10, height = 7)
 ```
 
+##### Animation
+
+``` r
+library(gganimate)
+
+sim_data_sub <- sim_data  %>%
+    filter(term == "x1") %>%
+    filter(n > 200) %>% 
+    filter(n %in% c(300, 1000, 10000)) %>% 
+  mutate(estimate_lab = round(estimate, 2) %>% as.character) %>% 
+  mutate(n = as.factor(n))
+
+
+ anim1 <-  sim_data_sub  %>%
+    # filter(term == "x1") %>%
+    # filter(n > 200) %>%
+    ggplot(aes(cors, estimate, colour = n, group = n)) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", alpha = 0.9) +
+  geom_line() +
+  geom_segment(aes(xend = 1, yend = estimate), linetype = 2, colour = 'grey') +
+  geom_point(size = 2) +
+  geom_text(aes(x = 1, label = n), hjust = 0, size = 4, fontface = "bold") +
+  geom_text(aes(x = 0.15, y = 1.8, label = paste0("Correlation: ", cors)), 
+                hjust = 1, size = 5, color = "black") +
+  geom_text(aes(label = estimate_lab), hjust = 0, size = 3, fontface = "bold", nudge_y = 0.1) +
+  xlab("Pearson's r correlation between x1 and x2") +
+  ylab("x1 b-coefficient") + 
+  coord_cartesian(clip = 'off') + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", 
+                      direction = -1, 
+                      discrete = T,
+                      begin = 0.3,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  guides(colour = F) +
+  theme(title = element_text(size = 15, face = "bold"), 
+        axis.text.x = element_text(size = 14, face = "bold"), 
+        axis.text.y = element_text(size = 10, face = "italic")) +
+  ggtitle("Sample Size and Collinearity Influence on b-coefficients (Sample Sizes: 300, 1000 and 10.000)") +
+  # guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom")) +
+  # Here comes the gganimate code
+  transition_reveal(n, cors) 
+
+
+anim1 %>% animate(
+  nframes = 500, fps = 15, width = 1000, height = 600, detail = 3
+)
+
+anim_save("images/b_anim.gif")
+```
+
+![](https://github.com/favstats/multicol_sim/blob/master/images/b_anim.gif?raw=true)<!-- -->
+
 ##### Standardized
 
 ``` r
