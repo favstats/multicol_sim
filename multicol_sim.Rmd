@@ -187,7 +187,60 @@ sim_data  %>%
 ggsave(filename = "images/b_static.png", width = 10, height = 7)
 ```
 
+##### Animated
 
+```{r}
+library(gganimate)
+
+sim_data_sub <- sim_data  %>%
+    filter(term == "x1") %>%
+    filter(n > 200) %>% 
+    filter(n %in% c(300, 1000, 10000)) %>% 
+  mutate(estimate_lab = round(estimate, 2) %>% as.character) %>% 
+  mutate(n = as.factor(n))
+
+
+ anim1 <-  sim_data_sub  %>%
+    # filter(term == "x1") %>%
+    # filter(n > 200) %>%
+    ggplot(aes(cors, estimate, colour = n, group = n)) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", alpha = 0.9) +
+  geom_line() +
+  geom_segment(aes(xend = 1, yend = estimate), linetype = 2, colour = 'grey') +
+  geom_point(size = 2) +
+  geom_text(aes(x = 1, label = n), hjust = 0, size = 4, fontface = "bold") +
+  geom_text(aes(x = 0.15, y = 1.8, label = paste0("Correlation: ", cors)), 
+                hjust = 1, size = 5, color = "black") +
+  geom_text(aes(label = estimate_lab), hjust = 0, size = 3, fontface = "bold", nudge_y = 0.1) +
+  xlab("Pearson's r correlation between x1 and x2") +
+  ylab("x1 b-coefficient") + 
+  coord_cartesian(clip = 'off') + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", 
+                      direction = -1, 
+                      discrete = T,
+                      begin = 0.3,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  guides(colour = F) +
+  theme(title = element_text(size = 15, face = "bold"), 
+        axis.text.x = element_text(size = 14, face = "bold"), 
+        axis.text.y = element_text(size = 10, face = "italic")) +
+  ggtitle("Sample Size and Collinearity Influence on b-coefficients (Sample Sizes: 300, 1000 and 10.000)") +
+  # guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom")) +
+  # Here comes the gganimate code
+  transition_reveal(n, cors) 
+
+
+anim1 %>% animate(
+  nframes = 500, fps = 15, width = 1000, height = 600, detail = 3
+)
+
+anim_save("images/b_anim.gif")
+```
+
+<!-- ![](images/daily_temp.gif)-->
 
 ##### Standardized
 
@@ -210,6 +263,147 @@ sim_data  %>%
 
 ggsave(filename = "images/b_standardized_static.png", width = 10, height = 7)
 ```
+
+## r squared
+
+```{r}
+generate_multi <- function(n, cor_seq){
+  set.seed(2017)
+  x <- runif(n, 1, 10)
+  models <- list()
+  std.models <- list()
+  for (jj in seq_along(cor_seq)) {
+    ## generate correlated variable x2
+    dat <- data.frame(corgen(x = x, r = cor_seq[jj],  epsilon = 0))
+    colnames(dat) <- c("x1", "x2")
+    ## generate y variable
+    dat$y <- 0.5 * dat$x1 + 0.5 * dat$x2 + rnorm(n, sd = 10)
+    ## modelling and tidy dataframe
+    models[[jj]] <- glance(lm(y ~ x1 + x2, data = dat))
+    models[[jj]]$cors <- cor_seq[jj]
+  }
+  sim_dat <- bind_rows(models)
+  sim_dat$col <- n
+  return(sim_dat)
+}
+
+draw.data <- function(cor_seq = NULL, step_seq = NULL){
+    sim.list <- list()
+    for(jj in seq_along(step_seq)) {
+      sim.list[[jj]] <- generate_multi(n = step_seq[jj], cor_seq)
+      sim.list[[jj]]$n <- step_seq[jj]
+      
+      cat(paste0("Batch: ", jj, "\t"))
+      
+    } 
+    sim_data <- bind_rows(sim.list)
+    return(sim_data)
+}
+
+
+
+glance_data <- draw.data(cor_seq = seq(0,.99,0.01), step_seq = seq(50, 10000, by = 50))
+
+if(!dir.exists("data")) dir.create("data")
+
+save(glance_data, file = "data/glance_data.Rdata")
+```
+
+
+```{r}
+glance_data  %>% 
+     # filter(term == "x1") %>% 
+     ggplot(aes(cors, r.squared, colour = n, group = n)) + 
+     geom_smooth(method = "loess", se = F, size = 1, alpha = 0.5) +
+  xlab(expression("Pearson's"~r~correlation~between~x[1]~and~x[2])) + 
+  ylab(expression(R^2)) + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", direction = -1,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  ggtitle("Sample Size and Collinearity Influence on R Squared") +
+  guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom")) +
+  ylim(0, .1)
+
+ggsave(filename = "images/rsquared_static.png", width = 10, height = 7)
+```
+
+## Sigma
+
+```{r}
+glance_data  %>% 
+     # filter(term == "x1") %>% 
+     ggplot(aes(cors, sigma, colour = n, group = n)) + 
+     geom_line(size = 1, alpha = 0.5) +
+  xlab(expression("Pearson's"~r~correlation~between~x[1]~and~x[2])) + 
+  ylab(expression(sigma)) + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", direction = -1,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  ggtitle("Sample Size and Collinearity Influence on Sigma") +
+  guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom"))
+
+ggsave(filename = "images/sigma_static.png", width = 10, height = 7)
+```
+
+
+## F Statistic
+
+```{r}
+glance_data  %>% 
+     # filter(term == "x1") %>% 
+     ggplot(aes(cors, statistic, colour = n, group = n)) + 
+     geom_smooth(method = "loess", se = F, size = 1, alpha = 0.5) +
+  xlab(expression("Pearson's"~r~correlation~between~x[1]~and~x[2])) + 
+  ylab(expression(F-Statistic)) + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", direction = -1,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  ggtitle("Sample Size and Collinearity Influence on F-Statistic") +
+  guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom"))
+
+ggsave(filename = "images/F_wholemodel_static.png", width = 10, height = 7)
+```
+
+
+## P-Value
+
+```{r}
+glance_data  %>% 
+     # filter(term == "x1") %>% 
+     ggplot(aes(cors, p.value, colour = n, group = n)) + 
+     geom_smooth(method = "loess", se = F, size = 1, alpha = 0.5) +
+  xlab(expression("Pearson's"~r~correlation~between~x[1]~and~x[2])) + 
+  ylab(expression(P-Value)) + 
+  theme_hc() + 
+  scale_color_viridis("Sample Size", direction = -1,
+       # limits = seq(1000, 10000, 3000),
+       breaks = seq(1000, 10000, 3000),
+       labels = seq(1000, 10000, 3000)) +
+  ggtitle("Sample Size and Collinearity Influence on P-Value") +
+  guides(colour = guide_colourbar(barwidth = 20, label.position = "bottom"))
+
+ggsave(filename = "images/p_wholemodel_static.png", width = 10, height = 7)
+```
+
+```{r}
+glance_data  %>% 
+     # filter(term == "x1") %>% 
+     ggplot(aes(cors, sigma, colour = n, group = n)) + 
+     geom_line(size = .05, alpha = 0.3) +
+  scale_color_viridis("Sample Size", direction = -1, option = "B") +
+  ggpubr::theme_transparent() +
+  guides(colour = F) 
+
+ggsave(filename = "images/banner.png",  width = 10, height = 6, bg = "transparent")
+
+```
+
 
 ```{r}
 sessionInfo()
